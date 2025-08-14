@@ -28,11 +28,7 @@ namespace OutputMessages
 	};
 
 	/// Prints an ExtremeList of top/bottom results, accounting for the actual number of solutions found.
-	void printExtremeResults (
-		const ExtremeList& extremeList,
-		const int numSolutions
-		) {
-
+	void printExtremeResults(const ExtremeList& extremeList, const int numSolutions) {
 		if (numSolutions == 0) {
 			throw NoSolutionsError();
 		}
