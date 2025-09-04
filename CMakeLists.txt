@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_executable(BondSequenceOptimiser
     main.cpp
+    src/cli/OutputMessages.cpp
     src/helpers/GeneralHelpers.cpp
     src/helpers/InputHelpers.cpp
     src/helpers/OutputHelpers.cpp
