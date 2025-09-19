@@ -141,6 +141,6 @@ namespace DynamicOptimiser
 		// Since we have (necessarily) constructed the path backwards, we reverse it for ease of use later.
 		std::ranges::reverse(optimalChoices);
 
-		return { bestCRF, std::move(optimalChoices) };
+		return { bestCRF, optimalChoices };
 	}
 }

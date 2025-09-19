@@ -118,6 +118,6 @@ namespace RecursiveOptimiser
 
 		recurseCRFs(tenorData, 0, 1, currentPath, topChoices, botChoices, numSolutions);
 
-		return { std::move(topChoices), std::move(botChoices), numSolutions };
+		return { topChoices, botChoices, numSolutions };
 	}
 }
