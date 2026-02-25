@@ -1,157 +1,145 @@
-#include "cli/OutputMessages.h"
-
-#include "helpers/GeneralHelpers.h"
-#include "helpers/InputHelpers.h"
-#include "helpers/OutputHelpers.h"
-
-#include "optimisers/DynamicOptimiser.h"
-#include "optimisers/RecursiveOptimiser.h"
-
-#include "types/BondReturnData.h"
-#include "types/CRFAndChoices.h"
-#include "types/InvestmentAction.h"
-#include "types/RankingTypes.h"
+#include "app/cli/Prompts.hpp"
+#include "app/counter/PathCounter.hpp"
+#include "app/domain/BondReturnData.hpp"
+#include "app/domain/InvestmentAction.hpp"
+#include "app/io/ExportOptions.hpp"
+#include "app/io/ResultsOutput.hpp"
+#include "app/optimiser/DynamicOptimiser.hpp"
+#include "helpers/DistinguishedVariant.hpp"
+#include "helpers/Meta.hpp"
+#include "helpers/Strings.hpp"
+#include "helpers/printing/StyledPrint.hpp"
+#include "transformers/Generic.hpp"
+#include "transformers/Mapping.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <exception>
 #include <iostream>
 #include <limits>
-#include <optional>
 #include <print>
 #include <string>
 #include <string_view>
-#include <tuple>
-#include <utility>
+#include <variant>
+#include <vector>
 
 int main()
 {
-	std::println();
-	const auto algoTypeOpt = InputHelpers::promptValidated<int>(
-		"Enter 0 for the optimal cumulative return and corresponding buying strategy;\n"
-		"Enter 1 to choose how many top and/or bottom results to display;\n"
-		"OR press ENTER to quit:",
-		[](const std::string_view x){ return x == "0" || x == "1"; },
-		"Invalid entry"
-	);
-	if (!algoTypeOpt) {
-		return 0;
-	}
+// INPUT ---------------------------------------------------------------------------------------------------------------
 
-	const bool useDP = *algoTypeOpt == 0;
-	std::println();
+	int numResultsRequested{};
+	std::size_t numResultsFound{};
 
-	if (!useDP) {
-		std::println("NOTE:");
-		OutputHelpers::wrappedPrint("The DFS recursive algorithm used to find any number of top and/or bottom results "
-			"cannot account for waiting (unlike the dynamic programming algorithm returning only the optimal result). That is, "
-			"there can be no periods between bond purchases.");
-		std::println();
-	}
+	std::vector<int> tenorList{};
+	int numMonths{};
 
-	std::string filePath;
-	std::optional<BondReturnData> dataOpt;
-	bool validFileEntered = false;
-	while (!validFileEntered) {
-		std::println("Enter the path to your bond return data file (e.g. bond_data.csv or txt);");
-		std::println("OR enter 'h' to show file help;");
-		std::println("OR press ENTER to quit:");
-		std::getline(std::cin, filePath);
+	std::chrono::duration<double, std::milli> computationTime{};
 
-		if (filePath.empty()) {
+	try {
+		const auto dataPromptResult = Prompts::getDataPrompt();
+		if (dataPromptResult.isEscape()) {
 			return 0;
 		}
+		const auto& tenorData = dataPromptResult.getValue();
+		std::println();
 
-		if (filePath.size() == 1 && GeneralHelpers::svToLowercase(filePath) == "h") {
-			OutputMessages::printFileHelp();
-			std::println();
-			continue;
+		tenorList = tenorData.tenors();
+		numMonths = tenorData.numMonths();
+
+		const auto numResultsPromptResult = Prompts::getNumResultsPrompt();
+		if (numResultsPromptResult.isEscape()) {
+			return 0;
 		}
+		numResultsRequested = numResultsPromptResult.getValue();
+		std::println();
 
+		const auto exportDecision = IO::Output::getExportDecision(tenorData);
+
+// CALCULATION ---------------------------------------------------------------------------------------------------------
+
+		const auto startTime = std::chrono::steady_clock::now();
+
+		DynamicOptimiser::OptimalResults results{};
 		try {
-			dataOpt.emplace(CSVLoader::loadBondReturnCSV(filePath));
+			results = DynamicOptimiser::getOptimalSequences(tenorData, numResultsRequested);
 		}
-		catch (const CSVLoader::FileError& e) {
-			std::println(std::cerr, "Failed to load data: {}", e.what());
-			std::println();
-			continue;
-		}
-		catch (const std::exception& e) {
-			std::println(std::cerr, "Error: {}", e.what());
-			std::println();
+		catch (const std::overflow_error& e) {
+			Helpers::Printing::styledPrintln(Helpers::Printing::Styles::error, "Overflow: {}", e.what());
 			return 1;
 		}
 
-		validFileEntered = true;
-	}
+		const auto endTime = std::chrono::steady_clock::now();
 
-	const BondReturnData& tenorData = *dataOpt;
-	std::println();
+		computationTime = endTime - startTime;
 
-	try {
-		std::chrono::steady_clock::time_point start;
-		if (useDP) {
-			start = std::chrono::steady_clock::now();
-			auto [ optimalCRF, optimalChoices ] = DynamicOptimiser::optimiseCRF(tenorData);
+		numResultsFound = results.CRFs.size();
 
-			std::println("Optimal cumulative return: {:.2f}%", 100 * optimalCRF - 100);
-			for (const InvestmentAction& choice : optimalChoices) {
-				std::println("{}", choice);
-			}
-		}
-		else {
-			const auto numTopOpt = InputHelpers::promptValidated<int>(
-				"Enter how many of the top results you would like; OR press ENTER to quit:",
-				GeneralHelpers::svAllDigits,
-				"Entry must be a positive integer"
-			);
-			if (!numTopOpt) {
-				return 0;
-			}
-			const int numTop = *numTopOpt;
-			std::println();
+// OUTPUT --------------------------------------------------------------------------------------------------------------
 
-			const auto numBotOpt = InputHelpers::promptValidated<int>(
-				"Enter how many of the bottom results you would like; OR press ENTER to quit:",
-				GeneralHelpers::svAllDigits,
-				"Entry must be a positive integer"
-			);
-			if (!numBotOpt) {
-				return 0;
-			}
-			const int numBot = *numBotOpt;
-			std::println();
-
-			start = std::chrono::steady_clock::now();
-
-			if (!(numTop == 0 && numBot == 0)) {
-				const auto [topChoices, botChoices, numSolutions] =
-					RecursiveOptimiser::topBotCRFs(tenorData, numTop, numBot);
-
-				try {
-					OutputMessages::printExtremeResults(topChoices, numSolutions);
-					std::println();
-					OutputMessages::printExtremeResults(botChoices, numSolutions);
-					std::println();
-					std::println("Total results: {}", numSolutions);
+		const auto outcome = std::visit(
+			Helpers::Meta::overloaded(
+				[&](const IO::Output::Decision::Save& d) {
+					return IO::Output::exportCSV(results, numResultsFound, d.filePath);
+				},
+				[](const IO::Output::Decision::Print&) {
+					return IO::Output::ExportOutcome::Print;
+				},
+				[](const IO::Output::Decision::Quit&) {
+					return IO::Output::ExportOutcome::Quit;
 				}
-				catch (const OutputMessages::NoSolutionsError& e) {
-					std::println(std::cerr, "Error: {}", e.what());
-				}
-			}
+			),
+			exportDecision
+		);
+
+		switch (outcome) {
+			case IO::Output::ExportOutcome::Saved:
+				break;
+
+			case IO::Output::ExportOutcome::Print:
+				IO::Output::printResults(results, numResultsFound);
+				std::println();
+				break;
+
+			case IO::Output::ExportOutcome::Quit:
+				return 0;
 		}
-		const auto end = std::chrono::steady_clock::now();
-		const std::chrono::duration<double> elapsed = end - start;
-		std::println();
-		std::println("Elapsed time: {:.6f} milliseconds", 1000 * elapsed.count());
-		std::println();
 	}
 	catch (const std::exception& e) {
-		std::println(std::cerr, "Error: {}", e.what());
+		Helpers::Printing::styledPrintln(Helpers::Printing::Styles::error, "Unexpected error: {}", e.what());
 		return 1;
 	}
 
-	std::println("Press ENTER to quit.");
+// FINISH --------------------------------------------------------------------------------------------------------------
+
+	if (numResultsFound < static_cast<std::size_t>(numResultsRequested)) {
+		std::println(
+			"Note: {} solutions requested, but only {} found",
+			Helpers::Strings::formatIntWithSeparator(numResultsRequested),
+			Helpers::Strings::formatIntWithSeparator(numResultsFound)
+		);
+		std::println();
+	}
+
+	std::println("Computation time: {:.6f} milliseconds", computationTime.count());
+	std::println();
+
+	const auto printPathCountPromptResult = Transformers::Mapping::mappingTransformer<bool>(
+		"Enter \"y\" if you would like to calculate the total number of possible strategies;\n"
+		"OR press ENTER to quit:",
+		{{"y", true}},
+		{.caseSensitive = false, .quitWord = ""}
+	);
+	if (printPathCountPromptResult.isEscape()) {
+		return 0;
+	}
+	std::println();
+
+	std::println("Total possible strategies:");
+	PathCounter::printPathCount(tenorList, numMonths);
+	std::println();
+
+	std::println("Press ENTER to quit:");
 	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-	return 0;
+	return 0; // handles EOF / redirected input
 }
