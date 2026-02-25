@@ -13,6 +13,7 @@ add_executable(Bond_Sequence_Optimiser
     src/app/io/ExportOptions.cpp
     src/app/io/ResultsOutput.cpp
     src/app/optimiser/DynamicOptimiser.cpp
+    src/helpers/Filesystem.cpp
     src/helpers/Strings.cpp
     src/helpers/Output.cpp
     src/helpers/Quit.cpp
