@@ -27,4 +27,4 @@ target_include_directories(Bond_Sequence_Optimiser
     ${CMAKE_CURRENT_SOURCE_DIR}/external
 )
 
-target_compile_definitions(your_target PRIVATE NOMINMAX)
+target_compile_definitions(Bond_Sequence_Optimiser PRIVATE NOMINMAX)
