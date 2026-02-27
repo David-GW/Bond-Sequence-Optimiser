@@ -47,8 +47,6 @@ namespace Transformers::Numeric
 				}
 
 				int result{};
-				// Commented code below to be used when MSVC updates support:
-				// auto [ptr, ec] = std::from_chars(sv.begin(), sv.end(), result);
 				auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result);
 
 				if (ec == std::errc::result_out_of_range) {
@@ -57,8 +55,6 @@ namespace Transformers::Numeric
 					}
 					return Retry(options.tooLargeMessage);
 				}
-				// Commented code below to be used when MSVC updates support:
-				// if (ec == std::errc::invalid_argument || ptr != sv.end()) {
 				if (ec == std::errc::invalid_argument || ptr != sv.data() + sv.size()) {
 					return Retry(options.errorMessage);
 				}

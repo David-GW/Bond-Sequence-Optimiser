@@ -47,11 +47,7 @@ namespace Helpers::Strings
 	bool svIsPositiveInt(const std::string_view sv) noexcept {
 		int value{};
 		if (
-			// Commented code below to be used when MSVC updates support:
-			// auto [ptr, ec] = std::from_chars(sv.begin(), sv.end(), value);
 			auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), value);
-			// Commented code below to be used when MSVC updates support:
-			// ec != std::errc{} || ptr != sv.end();
 			ec != std::errc{} || ptr != sv.data() + sv.size()
 		) {
 			return false; // invalid string or integer overflows

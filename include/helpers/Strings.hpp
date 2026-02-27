@@ -23,6 +23,8 @@ namespace Helpers::Strings
 
 	[[nodiscard]] bool svIsPositiveInt(std::string_view sv) noexcept;
 
+//----------------------------------------------------------------------------------------------------------------------
+
 	template<typename Int>
 	requires std::is_integral_v<Int>
 	[[nodiscard]] std::string formatIntWithSeparator(
@@ -41,13 +43,18 @@ namespace Helpers::Strings
 		return s;
 	}
 
+//----------------------------------------------------------------------------------------------------------------------
+
 	/// Returns a string of elements of a formattable range separated by the specified delimiter,
 	/// which is ", " by default, with each element formatted as specified, which is "{}" by default.
 	template <std::ranges::input_range R>
-	requires std::formattable<std::ranges::range_value_t<R>, char>
+	requires std::formattable<std::remove_cvref_t<std::ranges::range_reference_t<R>>, char>
 	[[nodiscard]] std::string joinFormatted(
 		const R& range,
 		const std::string_view delimiter = ", ",
+		// Note: formatSpec is runtime data, so validity cannot be checked at compile time.
+		// To have joinFormatted be checked at compile, remove this argument and use:
+		// std::format_to(std::back_inserter(result), "{}", *it);
 		const std::string_view formatSpec = "{}"
 	) {
 		std::string result{};
@@ -55,13 +62,16 @@ namespace Helpers::Strings
 		auto it = std::ranges::begin(range);
 		const auto end = std::ranges::end(range);
 
-		if (it != end) {
-			std::vformat_to(std::back_inserter(result), formatSpec, std::make_format_args(*it));
+		if (it == end) {
+			return result;
 		}
+
+		std::vformat_to(std::back_inserter(result), formatSpec, std::make_format_args(*it));
 		for (++it; it != end; ++it) {
-			result += delimiter;
+			result.append(delimiter);
 			std::vformat_to(std::back_inserter(result), formatSpec, std::make_format_args(*it));
 		}
+
 		return result;
 	}
 }

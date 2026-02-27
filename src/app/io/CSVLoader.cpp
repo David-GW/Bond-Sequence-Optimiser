@@ -136,11 +136,7 @@ namespace IO::Input
 					Helpers::Strings::svTrimWhitespaceInPlace(cell);
 					int parsed{};
 					if (
-						// Commented code below to be used when MSVC updates support:
-						// auto [ptr, ec] = std::from_chars(cell.begin(), cell.end(), parsed);
 						auto [ptr, ec] = std::from_chars(cell.data(), cell.data() + cell.size(), parsed);
-						// Commented code below to be used when MSVC updates support:
-						// static_cast<bool>(ec) || ptr != cell.end() || parsed != currentMonth
 						static_cast<bool>(ec) || ptr != cell.data() + cell.size() || parsed != currentMonth
 					) {
 						throw CSVError(
@@ -171,8 +167,6 @@ namespace IO::Input
 				}
 
 				int result{};
-				// Commented code below to be used when MSVC updates support:
-				// auto [ptr, ec] = std::from_chars(sv.begin(), sv.end(), result);
 				auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result);
 
 				const std::string mustBePositive = "tenor must be a positive integer";
@@ -182,8 +176,6 @@ namespace IO::Input
 					}
 					throw ParseError("tenor is too long");
 				}
-				// Commented code below to be used when MSVC updates support:
-				// if (ec == std::errc::invalid_argument || ptr != sv.end()) {
 				if (ec == std::errc::invalid_argument || ptr != sv.data() + sv.size()) {
 					throw ParseError("invalid tenor");
 				}
@@ -200,8 +192,6 @@ namespace IO::Input
 				}
 
 				double result{};
-				// Commented code below to be used when MSVC updates support:
-				// auto [ptr, ec] = std::from_chars(sv.begin(), sv.end(), result);
 				auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result);
 
 				constexpr std::string_view returnTooSmallMessage = "bond return is too small";
@@ -212,8 +202,6 @@ namespace IO::Input
 					}
 					throw ParseError(std::string(returnTooLargeMessage));
 				}
-				// Commented code below to be used when MSVC updates support:
-				// if (ec == std::errc::invalid_argument || ptr != sv.end() || std::isnan(result)) {
 				if (ec == std::errc::invalid_argument || ptr != sv.data() + sv.size() || std::isnan(result)) {
 					throw ParseError("invalid bond return");
 				}

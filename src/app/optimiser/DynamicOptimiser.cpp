@@ -106,15 +106,15 @@ namespace DynamicOptimiser
                             if (waitStreak > 0) {
                                 currentPath.emplace_back(
                                     Domain::InvestmentAction::Action::Wait,
-                                    currentMonth - waitStreak,
+                                    currentMonth,
                                     waitStreak
                                 );
                                 waitStreak = 0;
                             }
-                            // Buy tenor ending at current month:
+                            // Buy tenor starting from current month:
                             currentPath.emplace_back(
                                 Domain::InvestmentAction::Action::Buy,
-                                currentMonth - tenorToReachMonth,
+                                currentMonth,
                                 tenorToReachMonth
                             );
                             currentMonth -= tenorToReachMonth;
@@ -228,11 +228,12 @@ namespace DynamicOptimiser
                     }
                     prevMonth = currentMonth - currentTenor;
                     const double factor = 1.0 + tenorData(i, prevMonth);
+                    // Note: prevCRF will never be -inf here, since we allow waiting there will always be
+                    // at least one way to reach each month.
                     const double prevCRF = CRFs[rowIndex[prevMonth], 0];
                     const double nextCRF = prevCRF * factor;
-                    // Check for overflow, but since we use -inf as a sentinel for unfilled, we must check that
-                    // this CRF was attained from a finite value previously for it to have truly overflowed:
-                    if (std::isinf(nextCRF) && std::isfinite(prevCRF)) {
+
+                    if (std::isinf(nextCRF)) {
                         Detail::Overflow::throwCRFOverflow(nextCRF, currentMonth);
                     }
                     candidatePQ.emplace(nextCRF, currentTenor, 0, prevMonth, factor);
@@ -251,24 +252,22 @@ namespace DynamicOptimiser
 
                     // Advance the list the current maximal head came from:
                     if (const int nextRank = topCandidate.prevRank + 1; nextRank < numResultsRequested) {
-                        // A predecessor row always has at least the waiting chain populated,
-                        // if an entry hasn't been produced yet it will still be -inf and lose in the queue.
-
                         const double prevCRF = CRFs[rowIndex[topCandidate.prevMonth], nextRank];
-                        const double nextCRF = prevCRF * topCandidate.factor;
-                        // Check for overflow, but since we use -inf as a sentinel for unfilled, we must check that
-                        // this CRF was attained from a finite value previously for it to have truly overflowed:
-                        if (std::isinf(nextCRF) && std::isfinite(prevCRF)) {
-                            Detail::Overflow::throwCRFOverflow(nextCRF, currentMonth);
+                        // Stop advancing if we reach the sentinel, no more results are available from that month.
+                        if (prevCRF != -std::numeric_limits<double>::infinity()) {
+                            const double nextCRF = prevCRF * topCandidate.factor;
+                            if (std::isinf(nextCRF)) {
+                                Detail::Overflow::throwCRFOverflow(nextCRF, currentMonth);
+                            }
+                            candidatePQ.emplace(
+                                nextCRF, topCandidate.tenor, nextRank, topCandidate.prevMonth, topCandidate.factor
+                            );
                         }
-                        candidatePQ.emplace(
-                            nextCRF, topCandidate.tenor, nextRank, topCandidate.prevMonth, topCandidate.factor
-                        );
                     }
                 }
                 numResultsFound = numResults;
 
-                // Any unfilled tail remains at -inf CRF and {-1,-1} decision.
+                // Any unfilled tail remains at -inf CRF and {-1, -1} decision.
             }
             finalPaths = Detail::PathReconstruction::reconstructPaths(decisions, numMonths, numResultsFound);
             finalRowPos = rowIndex[numMonths];
