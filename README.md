@@ -80,6 +80,6 @@ Say, for example, that this top result arose from buying a 3-month bond at month
 
 ### Complexity
 
-The naïve approach would be to work out all possible paths, sort them, and choose the top *k*. For *n* tenors and *m* months of data, this will be *O*(*m*·(*n+1*)^*m*). By contrast, our approach reduces this to *O*(*m*·(*n*+*k*)·log(*n*+1)).
+The naïve approach would be to work out all possible paths, sort them, and choose the top *k*. For *n* tenors and *m* months of data, this will be *O*(*m*·(*n*+1)^*m*). By contrast, our approach reduces this to *O*(*m*·(*n*+*k*)·log(*n*+1)).
 
 Assuming that the number of tenors (*n*) and results requested (*k*) is fixed, this means that our runtime grows linearly (*O*(*m*)) rather than exponentially as the horizon expands.
