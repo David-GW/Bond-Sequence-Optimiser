@@ -34,7 +34,10 @@ namespace Helpers::Strings
 	) {
 		std::string s = std::to_string(n);
 		int pos = static_cast<int>(s.length()) - blockSize;
-		const bool negative = std::is_signed_v<Int> && n < 0;
+		bool negative = false;
+		if constexpr (std::is_signed_v<Int>) {
+			negative = n < 0;
+		}
 		const int end = negative ? 1 : 0;
 		while (pos > end) {
 			s.insert(pos, separator);

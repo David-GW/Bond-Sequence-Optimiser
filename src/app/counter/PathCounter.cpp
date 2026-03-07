@@ -27,9 +27,11 @@ namespace PathCounter
 		/// from the provided bond return data, returning printing an approximation if the number of strategies
 		/// exceeds exact representation as a long long.
 		PathCount countPaths(std::vector<int> tenorList, const int numMonths) {
+			// Add the option to wait
 			tenorList.insert(tenorList.begin(), 1);
 
 			std::vector<long long> numPaths( numMonths + 1, 0);
+			// Seed that there is 1 way to reach month 0
 			numPaths[0] = 1;
 
 			std::vector<double> numPathsApprox;

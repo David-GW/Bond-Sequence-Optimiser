@@ -36,20 +36,22 @@ namespace Transformers::Mapping
 
 	namespace Detail
 	{
+		[[nodiscard]] inline std::string normaliseString(const std::string& s, const MappingOptions& options) {
+			if (options.caseSensitive) {
+				return s;
+			}
+			return Helpers::Strings::svToLowercase(s);
+		}
+
 		/// Ensures that there are no duplicate keys, and that no key matches the escape token,
 		/// taking into account the specified case-sensitivity setting.
 		template <typename T>
-		void validateMapEntries(const TransformerEntries<T>& entries, const MappingOptions& options) {
-			std::string normalisedEscapeToken = options.escapeToken;
-			if (!options.caseSensitive) {
-				normalisedEscapeToken = Helpers::Strings::svToLowercase(normalisedEscapeToken);
-			}
+		[[nodiscard]] auto generateValueMap(const TransformerEntries<T>& entries, const MappingOptions& options) {
+			const std::string normalisedEscapeToken = normaliseString(options.escapeToken, options);
 			std::unordered_map<std::string, std::string> normalisedToOriginal;
-			for (const auto& [key, _] : entries) {
-				std::string normalisedKey = key;
-				if (!options.caseSensitive) {
-					normalisedKey = Helpers::Strings::svToLowercase(normalisedKey);
-				}
+			std::unordered_map<std::string, T> valueMap;
+			for (const auto& [key, value] : entries) {
+				std::string normalisedKey = normaliseString(key, options);
 				if (normalisedKey == normalisedEscapeToken) {
 					throw std::invalid_argument(
 						std::format(
@@ -67,7 +69,9 @@ namespace Transformers::Mapping
 						)
 					);
 				}
+				valueMap.emplace(normalisedKey, value);
 			}
+			return valueMap;
 		}
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -76,31 +80,28 @@ namespace Transformers::Mapping
 		/// subject to case-sensitivity settings, handling the escape token and invalid input also.
 		template <typename T>
 		[[nodiscard]] auto makeMappingTransformer(TransformerEntries<T> entries, MappingOptions options = {}) {
+			auto valueMap = Detail::generateValueMap(entries, options);
 			// Capture by value and move to avoid copies:
 			return [
-				entries = std::move(entries),
+				valueMap = std::move(valueMap),
 				options = std::move(options)
 			] (const std::string_view sv) -> TransformerResult<T> {
-				std::string normalisedInput;
-				std::string normalisedEscapeToken;
+				const std::string normalisedInput = normaliseString(std::string{sv}, options);
+				bool escapeRequested = false;
 				if (options.caseSensitive) {
-					normalisedInput = std::string{sv};
-					normalisedEscapeToken = options.escapeToken;
+					escapeRequested = sv == options.escapeToken;
 				}
 				else {
-					normalisedInput = Helpers::Strings::svToLowercase(sv);
-					normalisedEscapeToken = Helpers::Strings::svToLowercase(options.escapeToken);
+					escapeRequested = Helpers::Strings::svCaseInsensitiveCompare(sv, options.escapeToken);
 				}
-				if (normalisedInput == normalisedEscapeToken) {
+				if (escapeRequested) {
 					if (options.quitWord.empty() || Helpers::Quit::confirmQuit(options.quitWord)) {
 						return Escape{};
 					}
 					return Retry{};
 				}
-				for (const auto& [key, value] : entries) {
-					if (normalisedInput == key) {
-						return value;
-					}
+				if (auto it = valueMap.find(normalisedInput); it != valueMap.end()) {
+					return it->second;
 				}
 				return Retry(options.errorMessage);
 			};
@@ -118,15 +119,7 @@ namespace Transformers::Mapping
 		TransformerEntries<T> entries,
 		MappingOptions options
 	) {
-		Detail::validateMapEntries(entries, options);
-
-		if (!options.caseSensitive) {
-			for (auto& [key, _] : entries) {
-				key = Helpers::Strings::svToLowercase(key);
-			}
-		}
-
-		auto transformer = Detail::makeMappingTransformer<T>(std::move(entries), options);
+		auto transformer = Detail::makeMappingTransformer<T>(std::move(entries), std::move(options));
 		return promptTransformer(prompt,std::move(transformer));
 	}
 }

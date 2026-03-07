@@ -5,7 +5,6 @@
 #include "app/io/ExportOptions.hpp"
 #include "app/io/ResultsOutput.hpp"
 #include "app/optimiser/DynamicOptimiser.hpp"
-#include "helpers/DistinguishedVariant.hpp"
 #include "helpers/Meta.hpp"
 #include "helpers/Strings.hpp"
 #include "helpers/printing/StyledPrint.hpp"
@@ -19,7 +18,6 @@
 #include <limits>
 #include <print>
 #include <string>
-#include <string_view>
 #include <variant>
 #include <vector>
 

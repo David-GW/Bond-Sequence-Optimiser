@@ -112,12 +112,12 @@ namespace DynamicOptimiser
                                 waitStreak = 0;
                             }
                             // Buy tenor starting from current month:
+                            currentMonth -= tenorToReachMonth;
                             currentPath.emplace_back(
                                 Domain::InvestmentAction::Action::Buy,
                                 currentMonth,
                                 tenorToReachMonth
                             );
-                            currentMonth -= tenorToReachMonth;
                         }
                     }
                     // If we the path finished with waiting, we need to add this to the decision list too:
@@ -137,7 +137,7 @@ namespace DynamicOptimiser
         }
     }
 
-//----------------------------------------------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------------------------------
 
     OptimalResults getOptimalSequences(const Domain::BondReturnData& tenorData, const int numResultsRequested) {
         const int numTenors = tenorData.numTenors();
@@ -198,7 +198,7 @@ namespace DynamicOptimiser
             decisions[0, 0, 0] = 0; // seeded that we "waited" to reach month 0
 
             // Stores the index in the windowed CRFs span which corresponds to a given month.
-            // We do this rather than using % for speed.
+            // We do this rather than using % since testing suggested a modest performance gain.
             std::vector<std::size_t> rowIndex(static_cast<std::size_t>(numMonths) + 1);
             std::size_t windowCounter = 1;
 
@@ -265,9 +265,11 @@ namespace DynamicOptimiser
                         }
                     }
                 }
-                numResultsFound = numResults;
-
                 // Any unfilled tail remains at -inf CRF and {-1, -1} decision.
+            }
+            for (int i = 0; i < numResultsRequested; ++i) {
+                if (CRFs[finalRowPos, i] == -std::numeric_limits<double>::infinity()) break;
+                ++numResultsFound;
             }
             finalPaths = Detail::PathReconstruction::reconstructPaths(decisions, numMonths, numResultsFound);
             finalRowPos = rowIndex[numMonths];

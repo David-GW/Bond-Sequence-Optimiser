@@ -1,17 +1,13 @@
 #include "helpers/Filesystem.hpp"
 
+#include "helpers/Platform.hpp"
+
 #include <cstddef>
 #include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <string>
 #include <string_view>
-
-#if defined(_WIN32) || defined(_WIN64)
-	#define IS_WINDOWS 1
-#else
-	#define IS_WINDOWS 0
-#endif
 
 namespace Helpers::Filesystem
 {
@@ -68,10 +64,10 @@ namespace Helpers::Filesystem
 			return std::filesystem::path{pathSv}.lexically_normal();
 		}
 
-		#if IS_WINDOWS
-		const char* home = std::getenv("USERPROFILE");
+		#if BSO_IS_WINDOWS
+			const char* home = std::getenv("USERPROFILE");
 		#else
-		const char* home = std::getenv("HOME");
+			const char* home = std::getenv("HOME");
 		#endif
 		if (!home) {
 			throw DirectoryError("cannot expand '~': HOME environment variable not set");

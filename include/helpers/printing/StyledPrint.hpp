@@ -85,9 +85,22 @@ namespace Helpers::Printing
 	/// An equivalent to std::println, explicitly specifying the output stream,
 	/// in which the output is styled as specified.
 	template<class... Args>
-	void styledPrintln(std::ostream& os, const Style& style, std::format_string<Args...> fmt, Args&&... args) {
-		styledPrint(os, style, fmt, std::forward<Args>(args)...);
+	void styledPrintLn(std::ostream& os, const Style& style, std::format_string<Args...> fmt, Args&&... args) {
+		Detail::rangConfigureOnce();
+
+		// Avoid threads conflicting:
+		std::lock_guard lock(Detail::osMutex);
+
+		os << style;
+		std::print(os, fmt, std::forward<Args>(args)...);
+		os << rang::style::reset;
 		os << '\n';
+
+		// Note: os << '\n'; should be inside the mutex lock, so we can't just define this function as
+		// styledPrint(std::cout, style, fmt, std::forward<Args>(args)...);
+		// os << '\n';
+		// and fmt is an std::format_string, which is a compile-time construct, so we can't just do
+		// styledPrint(std::cout, style, fmt + '\n', std::forward<Args>(args)...);
 	}
 
 	/// An equivalent to std::println, defaulting to std::cout, in which the output is styled as specified.

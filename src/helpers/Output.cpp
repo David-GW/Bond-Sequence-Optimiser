@@ -1,12 +1,8 @@
 #include "helpers/Output.hpp"
 
-#if defined(_WIN32) || defined(_WIN64)
-	#define IS_WINDOWS 1
-#else
-	#define IS_WINDOWS 0
-#endif
+#include "helpers/Platform.hpp"
 
-#if IS_WINDOWS
+#if BSO_IS_WINDOWS
 	#include <windows.h>
 #else
 	#include <unistd.h>
@@ -16,7 +12,7 @@
 namespace Helpers::Output
 {
 	int getTerminalWidth(const int fallback) noexcept {
-		#if IS_WINDOWS
+		#if BSO_IS_WINDOWS
 			CONSOLE_SCREEN_BUFFER_INFO csbi;
 			if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
 				if (const int result = csbi.srWindow.Right - csbi.srWindow.Left + 1; result > 0) {

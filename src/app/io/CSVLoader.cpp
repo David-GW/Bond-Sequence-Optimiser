@@ -338,7 +338,7 @@ namespace IO::Input
 						std::format(
 							"shortest tenor is {} months, but only {} months of data provided",
 							shortestTenor,
-							numMonths - 1
+							numMonths
 						)
 					);
 				}
