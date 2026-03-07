@@ -85,7 +85,7 @@ namespace Helpers::Printing
 	/// An equivalent to std::println, explicitly specifying the output stream,
 	/// in which the output is styled as specified.
 	template<class... Args>
-	void styledPrintLn(std::ostream& os, const Style& style, std::format_string<Args...> fmt, Args&&... args) {
+	void styledPrintln(std::ostream& os, const Style& style, std::format_string<Args...> fmt, Args&&... args) {
 		Detail::rangConfigureOnce();
 
 		// Avoid threads conflicting:
