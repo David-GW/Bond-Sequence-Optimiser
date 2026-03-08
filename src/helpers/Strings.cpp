@@ -7,7 +7,6 @@
 #include <string>
 #include <string_view>
 
-/// Contains functions of general utility to the rest of the codebase.
 namespace Helpers::Strings
 {
 	namespace Detail

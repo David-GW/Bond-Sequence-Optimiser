@@ -4,6 +4,7 @@
 #include "helpers/Quit.hpp"
 #include "helpers/Strings.hpp"
 #include "transformers/Generic.hpp"
+#include "transformers/OptionsUtils.hpp"
 
 #include <charconv>
 #include <format>
@@ -12,8 +13,8 @@
 
 namespace Transformers::Numeric
 {
-	/// Stores options for the numeric transformer, including which token should return an escape,and whether or not
-	/// this token is case-sensitive.
+	/// Stores options for the numeric transformer, including which token should return an escape, and whether or not
+	/// input is case-sensitive.
 	struct NumericOptions
 	{
 		std::string escapeToken{};
@@ -32,14 +33,7 @@ namespace Transformers::Numeric
 		/// escape token and invalid input also.
 		[[nodiscard]] inline auto makePositiveIntTransformer(NumericOptions options = {}) {
 			return [options = std::move(options)] (const std::string_view sv) -> TransformerResult<int> {
-				bool escapeRequested = false;
-				if (options.caseSensitive) {
-					escapeRequested = sv == options.escapeToken;
-				}
-				else {
-					escapeRequested = Helpers::Strings::svCaseInsensitiveCompare(sv, options.escapeToken);
-				}
-				if (escapeRequested) {
+				if (checkEscape(sv, options)) {
 					if (options.quitWord.empty() || Helpers::Quit::confirmQuit(options.quitWord)) {
 						return Escape{};
 					}

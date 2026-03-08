@@ -2,8 +2,8 @@
 #define BSO_TRANSFORMERS_MAPPING_HPP
 
 #include "helpers/Quit.hpp"
-#include "helpers/Strings.hpp"
 #include "transformers/Generic.hpp"
+#include "transformers/OptionsUtils.hpp"
 
 #include <format>
 #include <stdexcept>
@@ -15,7 +15,7 @@
 
 namespace Transformers::Mapping
 {
-	/// Stores options for the mapping transformer, including which token should return an escape, whether or not
+	/// Stores options for the mapping transformer, including which token should return an escape, and whether or not
 	/// tokens are case-sensitive (i.e. if "{x, value}" is specified, should we map "X" to value also).
 	struct MappingOptions
 	{
@@ -36,13 +36,6 @@ namespace Transformers::Mapping
 
 	namespace Detail
 	{
-		[[nodiscard]] inline std::string normaliseString(const std::string& s, const MappingOptions& options) {
-			if (options.caseSensitive) {
-				return s;
-			}
-			return Helpers::Strings::svToLowercase(s);
-		}
-
 		/// Ensures that there are no duplicate keys, and that no key matches the escape token,
 		/// taking into account the specified case-sensitivity setting.
 		template <typename T>
@@ -87,14 +80,7 @@ namespace Transformers::Mapping
 				options = std::move(options)
 			] (const std::string_view sv) -> TransformerResult<T> {
 				const std::string normalisedInput = normaliseString(std::string{sv}, options);
-				bool escapeRequested = false;
-				if (options.caseSensitive) {
-					escapeRequested = sv == options.escapeToken;
-				}
-				else {
-					escapeRequested = Helpers::Strings::svCaseInsensitiveCompare(sv, options.escapeToken);
-				}
-				if (escapeRequested) {
+				if (checkEscape(sv, options)) {
 					if (options.quitWord.empty() || Helpers::Quit::confirmQuit(options.quitWord)) {
 						return Escape{};
 					}

@@ -1,6 +1,7 @@
 #ifndef BSO_HELPERS_STRINGS_HPP
 #define BSO_HELPERS_STRINGS_HPP
 
+#include <concepts>
 #include <format>
 #include <iterator>
 #include <ranges>
@@ -8,9 +9,13 @@
 #include <string_view>
 #include <type_traits>
 
-/// Contains functions of general utility to the rest of the codebase.
 namespace Helpers::Strings
 {
+	template <typename S>
+	concept StringLike = std::convertible_to<S, std::string_view>;
+
+//----------------------------------------------------------------------------------------------------------------------
+
 	/// Returns a string from a string_view by converting all characters to lowercase,
 	/// safely in case of non-ASCII characters.
 	[[nodiscard]] std::string svToLowercase(std::string_view sv);

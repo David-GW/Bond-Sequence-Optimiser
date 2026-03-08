@@ -3,6 +3,7 @@
 
 #include "helpers/DistinguishedVariant.hpp"
 #include "helpers/Meta.hpp"
+#include "helpers/Strings.hpp"
 #include "helpers/printing/StyledPrint.hpp"
 
 #include <concepts>
@@ -10,25 +11,19 @@
 #include <print>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
 namespace Transformers
 {
-	namespace Detail
-	{
-		template <typename S> concept StringLike = std::convertible_to<S, std::string_view>;
-	}
-
-//----------------------------------------------------------------------------------------------------------------------
-
 	/// Stores the message and its style when prompting the user to retry entering input to the transformer.
 	struct Retry
 	{
 		std::string message{};
 		Helpers::Printing::Style style;
 
-		template <Detail::StringLike S>
+		template <Helpers::Strings::StringLike S>
 		explicit Retry(S&& msg, const Helpers::Printing::Style s = Helpers::Printing::Styles::error) :
 			message(std::string_view(msg)),
 			style(s)
@@ -96,59 +91,46 @@ namespace Transformers
 
 //----------------------------------------------------------------------------------------------------------------------
 
-	namespace Detail
-	{
-		/// Ensures that the function being passed to the prompt returns the correct type.
-		template <typename F, typename T>
-		concept TransformerCallable = std::same_as<
-			std::invoke_result_t<F, std::string_view>, TransformerResult<T>
-		>;
-
-		/// Prompts the user with the specified message until the transformer returns a result or is asked
-		/// to escape, printing the retry message styled as specified before each reattempt.
-		template <typename T, TransformerCallable<T> F>
-		[[nodiscard]] PromptResult<T> runPromptLoop(const std::string_view prompt, F&& transformer) {
-			std::string input{};
-
-			while (true) {
-				std::println("{}", prompt);
-
-				if (!std::getline(std::cin, input)) {
-					// EOF behaves like escape.
-					return PromptEscape{};
-				}
-
-				auto result = transformer(input);
-
-				if (result.isValue()) {
-					return std::move(result).getValue();
-				}
-				if (result.isRetry()) {
-					if (!result.retryMessage().empty()) {
-						Helpers::Printing::styledPrintln(result.retryStyle(),"{}", result.retryMessage());
-					}
-					std::println();
-					continue;
-				}
-				if (result.isEscape()) {
-					return PromptEscape{};
-				}
-
-				return PromptEscape{}; // shouldn't happen
-			}
-		}
-	}
-
-//----------------------------------------------------------------------------------------------------------------------
+	/// Ensures that the function being passed with the prompt returns some type of TransformerResult.
+	template <typename F>
+	concept TransformerCallable = Helpers::Meta::SpecialisationOf<
+		std::invoke_result_t<F, std::string_view>,
+		TransformerResult
+	>;
 
 	/// Prompts the user with the specified message until the transformer returns a result or is asked
 	/// to escape, printing the retry message styled as specified before each reattempt.
 	/// Here templating allows the return type to be deduced from that of the given transformer.
-	template <typename F>
-	requires Helpers::Meta::SpecialisationOf<std::invoke_result_t<F, std::string_view>, TransformerResult>
-	[[nodiscard]] auto promptTransformer(std::string_view promptText, F&& transformer) {
-		using T = std::invoke_result_t<F, std::string_view>::value_t;
-		return Detail::runPromptLoop<T>(promptText, std::forward<F>(transformer));
+	template <TransformerCallable F>
+	[[nodiscard]] PromptResult<typename std::invoke_result_t<F, std::string_view>::value_t>
+	promptTransformer(std::string_view prompt, F&& transformer) {
+		std::string input{};
+
+		while (true) {
+			std::println("{}", prompt);
+
+			if (!std::getline(std::cin, input)) {
+				// EOF behaves like escape.
+				return Detail::PromptEscape{};
+			}
+
+			auto result = transformer(input);
+
+			if (result.isValue()) {
+				return std::move(result).getValue();
+			}
+			if (result.isRetry()) {
+				if (!result.retryMessage().empty()) {
+					Helpers::Printing::styledPrintln(result.retryStyle(),"{}", result.retryMessage());
+				}
+				std::println();
+				continue;
+			}
+			if (result.isEscape()) {
+				return Detail::PromptEscape{};
+			}
+			std::unreachable(); // TransformerResult holds exactly T, Retry, or Escape
+		}
 	}
 }
 

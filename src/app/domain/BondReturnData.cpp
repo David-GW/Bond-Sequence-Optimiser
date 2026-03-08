@@ -46,8 +46,8 @@ namespace Domain
 			tenors_ = other.tenors_;
 			numMonths_ = other.numMonths_;
 			grid_ = other.grid_;
-			dataPath_ = other.dataPath_;
 			gridView_ = decltype(gridView_)(grid_.data(), tenors_.size(), numMonths_);
+			dataPath_ = other.dataPath_;
 		}
 		return *this;
 	}
@@ -66,8 +66,8 @@ namespace Domain
 			tenors_ = std::move(other.tenors_);
 			numMonths_ = other.numMonths_;
 			grid_ = std::move(other.grid_);
-			dataPath_ = std::move(other.dataPath_);
 			gridView_ = decltype(gridView_)(grid_.data(), tenors_.size(), numMonths_);
+			dataPath_ = std::move(other.dataPath_);
 		}
 		return *this;
 	}
